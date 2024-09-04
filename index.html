@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Методические рекомендации к книге А.В.Столярова "Введение в СИ++"</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #f4f4f4;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            border-left: 1px solid #ccc;
+        }
+        .sidebar a {
+            display: block;
+            padding: 10px;
+            text-decoration: none;
+            color: #333;
+            border-bottom: 1px solid #ddd;
+        }
+        .sidebar a:hover {
+            background-color: #eaeaea;
+        }
+        .content h1, .content h2 {
+            margin-top: 0;
+        }
+        [contenteditable="true"] {
+            border: 1px dashed #ccc;
+            padding: 5px;
+        }
+        #editor-controls {
+            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 1000;
+            padding: 10px 0;
+        }
+        button {
+            margin-right: 10px;
+            padding: 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <h2>Содержание</h2>
+        <div id="sidebar-links">
+            <!-- Ссылки на секции будут добавляться динамически -->
+        </div>
+        <button onclick="addSection()">Добавить секцию</button>
+        <select id="section-selector"></select>
+        <button onclick="removeSelectedSection()">Удалить выбранную секцию</button>
+        <button onclick="moveSection('up')">Переместить вверх</button>
+        <button onclick="moveSection('down')">Переместить вниз</button>
+    </div>
+
+    <div class="content" id="content">
+        <div id="editor-controls">
+            <button onclick="toggleEditMode()">Редактировать</button>
+            <button onclick="saveContent()">Сохранить изменения</button>
+            <button onclick="downloadHTML()">Скачать HTML</button>
+        </div>
+
+        <!-- Контент будет добавляться динамически -->
+    </div>
+
+    <script>
+        let editMode = false;
+
+        // Режим редактирования
+        function toggleEditMode() {
+            editMode = !editMode;
+            const elements = document.querySelectorAll('.content > div[id^="section"]');
+            elements.forEach(el => {
+                el.contentEditable = editMode.toString();
+                el.style.border = editMode ? '1px dashed #ccc' : 'none';
+            });
+        }
+
+        // Сохранение изменений
+        function saveContent() {
+            const content = document.getElementById('content').innerHTML;
+            localStorage.setItem('savedContent', content);
+            alert('Изменения сохранены!');
+        }
+
+        // Загрузка контента
+        function loadContent() {
+            const savedContent = localStorage.getItem('savedContent');
+            if (savedContent) {
+                document.getElementById('content').innerHTML = savedContent;
+                updateSidebarLinks(); // Обновляем боковое меню после загрузки
+            }
+        }
+
+        // Скачивание HTML-файла
+        function downloadHTML() {
+            const content = document.getElementById('content').innerHTML;
+            const blob = new Blob([content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'document.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Обновление бокового меню и выпадающего списка
+        function updateSidebarLinks() {
+            const sidebarLinks = document.getElementById('sidebar-links');
+            const sectionSelector = document.getElementById('section-selector');
+            sidebarLinks.innerHTML = ''; // Очищаем текущее содержимое
+            sectionSelector.innerHTML = ''; // Очищаем текущие опции
+
+            const sections = document.querySelectorAll('.content > div[id^="section"]');
+            sections.forEach(section => {
+                const id = section.id;
+                const title = section.querySelector('h1') ? section.querySelector('h1').innerText : 'Без заголовка';
+
+                // Обновляем ссылки в боковом меню
+                const link = document.createElement('a');
+                link.href = `#${id}`;
+                link.innerText = title;
+                sidebarLinks.appendChild(link);
+
+                // Обновляем выпадающий список
+                const option = document.createElement('option');
+                option.value = id;
+                option.text = title;
+                sectionSelector.appendChild(option);
+            });
+        }
+
+        // Добавление новой секции
+        function addSection() {
+            const sectionCount = document.querySelectorAll('.content > div[id^="section"]').length + 1;
+            const newSectionId = `section${sectionCount}`;
+            const newSection = document.createElement('div');
+            newSection.id = newSectionId;
+            newSection.contentEditable = 'false';
+            newSection.innerHTML = `<h1>Новая секция ${sectionCount}</h1><p>Контент новой секции.</p>`;
+            document.getElementById('content').appendChild(newSection);
+            updateSidebarLinks(); // Обновляем боковое меню
+
+            // Переключение на новую секцию
+            document.getElementById(newSectionId).scrollIntoView();
+        }
+
+        // Удаление выбранной секции
+        function removeSelectedSection() {
+            const sectionSelector = document.getElementById('section-selector');
+            const selectedSectionId = sectionSelector.value;
+            if (selectedSectionId) {
+                const sectionToRemove = document.getElementById(selectedSectionId);
+                document.getElementById('content').removeChild(sectionToRemove);
+                updateSidebarLinks(); // Обновляем боковое меню
+            }
+        }
+
+        // Перемещение выбранного раздела вверх или вниз
+        function moveSection(direction) {
+            const sectionSelector = document.getElementById('section-selector');
+            const selectedSectionId = sectionSelector.value;
+            if (!selectedSectionId) return;
+
+            const sections = Array.from(document.querySelectorAll('.content > div[id^="section"]'));
+            const index = sections.findIndex(section => section.id === selectedSectionId);
+
+            if (index === -1) return;
+
+            const sectionToMove = sections[index];
+            const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+            if (targetIndex < 0 || targetIndex >= sections.length) return;
+
+            const targetSection = sections[targetIndex];
+
+            if (direction === 'up') {
+                sectionToMove.parentNode.insertBefore(sectionToMove, targetSection);
+            } else {
+                sectionToMove.parentNode.insertBefore(sectionToMove, targetSection.nextSibling);
+            }
+
+            // Обновляем боковое меню и выпадающий список после перемещения
+            updateSidebarLinks();
+        }
+
+        // Загрузка контента при старте
+        document.addEventListener('DOMContentLoaded', loadContent);
+    </script>
+</body>
+</html>
